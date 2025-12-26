@@ -13,13 +13,16 @@ from telegram.ext import (
 # -------- CONFIG --------
 BOT_TOKEN = "8209118332:AAE0Y9vLNcTRGHTOQqdowKKhpqiYZFDOjd0"
 
+# ONLY 2 OWNERS
 OWNERS = {8453291493, 8295675309}
 
+# 🔥 NEW EMOJI POOL (DIFFERENT)
 MASTER_EMOJIS = [
-    "🩸","🕷️","🦂","🦇","🧛","🧟","🧬","⚔️","🗡️","🏴‍☠️",
-    "🌑","🌘","🌒","🌪️","☄️","🪓","🪦","🕸️","🩻","👁️‍🗨️"
+    "🩸","🕷️","🦂","🦇","🧛","🧟","👁️","👁️‍🗨️","🕸️","☠️",
+    "⚔️","🗡️","🪓","💣","🔥","🌑","🌒","🌘","🌪️","☄️"
 ]
 
+# -------- AUTO EMOJI GENERATOR --------
 def generate_emojis(token: str):
     hash_val = hashlib.sha256(token.encode()).hexdigest()
     random.seed(hash_val)
@@ -29,8 +32,10 @@ def generate_emojis(token: str):
 
 EMOJIS = generate_emojis(BOT_TOKEN)
 
+# -------- STORAGE --------
 gcnc_tasks = {}
 
+# -------- HELPERS --------
 def is_owner(user_id: int) -> bool:
     return user_id in OWNERS
 
@@ -69,7 +74,7 @@ async def gcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     chat = update.effective_chat
     if chat.type not in ["group", "supergroup"]:
-        return
+        return await update.message.reply_text("Group only command.")
 
     if not context.args:
         return await update.message.reply_text("Usage: /gcnc <group_name>")
@@ -81,7 +86,7 @@ async def gcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
             while True:
                 emoji = random.choice(EMOJIS)
                 await chat.set_title(f"{emoji} {base}")
-                await asyncio.sleep(2)
+                await asyncio.sleep(0.7)  # ⚡ FAST SPEED
         except asyncio.CancelledError:
             pass
         except Exception:
@@ -90,10 +95,8 @@ async def gcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if chat.id in gcnc_tasks:
         gcnc_tasks[chat.id].cancel()
 
-    task = context.application.create_task(loop())
-    gcnc_tasks[chat.id] = task
-
-    await update.message.reply_text("✅ GCNC started")
+    gcnc_tasks[chat.id] = context.application.create_task(loop())
+    await update.message.reply_text("✅ GCNC started (FAST MODE)")
 
 async def stopgcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_owner(update.effective_user.id):
