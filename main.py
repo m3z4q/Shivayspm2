@@ -9,6 +9,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
+from telegram.error import FloodWait
 
 # -------- CONFIG --------
 BOT_TOKEN = "8209118332:AAE0Y9vLNcTRGHTOQqdowKKhpqiYZFDOjd0"
@@ -16,7 +17,7 @@ BOT_TOKEN = "8209118332:AAE0Y9vLNcTRGHTOQqdowKKhpqiYZFDOjd0"
 # ONLY 2 OWNERS
 OWNERS = {8453291493, 8295675309}
 
-# 🔥 NEW EMOJI POOL (DIFFERENT)
+# 🔥 EMOJI POOL (UNIQUE THEME)
 MASTER_EMOJIS = [
     "🩸","🕷️","🦂","🦇","🧛","🧟","👁️","👁️‍🗨️","🕸️","☠️",
     "⚔️","🗡️","🪓","💣","🔥","🌑","🌒","🌘","🌪️","☄️"
@@ -82,21 +83,27 @@ async def gcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     base = " ".join(context.args)
 
     async def loop():
-        try:
-            while True:
+        while True:
+            try:
                 emoji = random.choice(EMOJIS)
                 await chat.set_title(f"{emoji} {base}")
-                await asyncio.sleep(0.7)  # ⚡ FAST SPEED
-        except asyncio.CancelledError:
-            pass
-        except Exception:
-            await asyncio.sleep(5)
+                await asyncio.sleep(0.5)  # ⚡ FAST SPEED
+            except FloodWait as e:
+                # Telegram ne bola ruk ja – phir continue
+                await asyncio.sleep(e.retry_after + 1)
+            except asyncio.CancelledError:
+                # /stopgcnc pe clean stop
+                break
+            except Exception:
+                # koi bhi error aaye, loop zinda rahe
+                await asyncio.sleep(3)
 
+    # agar pehle se chal raha hai to replace
     if chat.id in gcnc_tasks:
         gcnc_tasks[chat.id].cancel()
 
     gcnc_tasks[chat.id] = context.application.create_task(loop())
-    await update.message.reply_text("✅ GCNC started (FAST MODE)")
+    await update.message.reply_text("✅ GCNC started (FAST + UNLIMITED)")
 
 async def stopgcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_owner(update.effective_user.id):
