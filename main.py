@@ -9,21 +9,18 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
-from telegram.error import FloodWait
+from telegram.error import RetryAfter
 
 # -------- CONFIG --------
 BOT_TOKEN = "8209118332:AAE0Y9vLNcTRGHTOQqdowKKhpqiYZFDOjd0"
 
-# ONLY 2 OWNERS
 OWNERS = {8453291493, 8295675309}
 
-# 🔥 EMOJI POOL (UNIQUE THEME)
 MASTER_EMOJIS = [
     "🩸","🕷️","🦂","🦇","🧛","🧟","👁️","👁️‍🗨️","🕸️","☠️",
     "⚔️","🗡️","🪓","💣","🔥","🌑","🌒","🌘","🌪️","☄️"
 ]
 
-# -------- AUTO EMOJI GENERATOR --------
 def generate_emojis(token: str):
     hash_val = hashlib.sha256(token.encode()).hexdigest()
     random.seed(hash_val)
@@ -33,10 +30,8 @@ def generate_emojis(token: str):
 
 EMOJIS = generate_emojis(BOT_TOKEN)
 
-# -------- STORAGE --------
 gcnc_tasks = {}
 
-# -------- HELPERS --------
 def is_owner(user_id: int) -> bool:
     return user_id in OWNERS
 
@@ -87,18 +82,15 @@ async def gcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
             try:
                 emoji = random.choice(EMOJIS)
                 await chat.set_title(f"{emoji} {base}")
-                await asyncio.sleep(0.5)  # ⚡ FAST SPEED
-            except FloodWait as e:
-                # Telegram ne bola ruk ja – phir continue
+                await asyncio.sleep(0.5)  # ⚡ FAST
+            except RetryAfter as e:
+                # Telegram rate limit → wait then continue
                 await asyncio.sleep(e.retry_after + 1)
             except asyncio.CancelledError:
-                # /stopgcnc pe clean stop
                 break
             except Exception:
-                # koi bhi error aaye, loop zinda rahe
                 await asyncio.sleep(3)
 
-    # agar pehle se chal raha hai to replace
     if chat.id in gcnc_tasks:
         gcnc_tasks[chat.id].cancel()
 
@@ -114,7 +106,7 @@ async def stopgcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if task:
         task.cancel()
-        await update.message.reply_text("🛑 GCNC stopped successfully")
+        await update.message.reply_text("🛑 GCNC stopped")
     else:
         await update.message.reply_text("No GCNC running.")
 
