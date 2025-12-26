@@ -9,7 +9,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
-from telegram.error import RetryAfter
+from telegram.error import RetryAfter, BadRequest
 
 # -------- CONFIG --------
 BOT_TOKEN = "8209118332:AAE0Y9vLNcTRGHTOQqdowKKhpqiYZFDOjd0"
@@ -21,17 +21,20 @@ MASTER_EMOJIS = [
     "⚔️","🗡️","🪓","💣","🔥","🌑","🌒","🌘","🌪️","☄️"
 ]
 
+# -------- AUTO EMOJI GENERATOR --------
 def generate_emojis(token: str):
-    hash_val = hashlib.sha256(token.encode()).hexdigest()
-    random.seed(hash_val)
+    h = hashlib.sha256(token.encode()).hexdigest()
+    random.seed(h)
     emojis = MASTER_EMOJIS.copy()
     random.shuffle(emojis)
     return emojis[:8]
 
 EMOJIS = generate_emojis(BOT_TOKEN)
 
+# -------- STORAGE --------
 gcnc_tasks = {}
 
+# -------- HELPERS --------
 def is_owner(user_id: int) -> bool:
     return user_id in OWNERS
 
@@ -64,6 +67,7 @@ async def spam(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(text)
         await asyncio.sleep(0.15)
 
+# -------- GCNC (HARD UNLIMITED) --------
 async def gcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_owner(update.effective_user.id):
         return
@@ -78,24 +82,39 @@ async def gcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     base = " ".join(context.args)
 
     async def loop():
+        emoji_index = 0
+        emoji_list = EMOJIS.copy()
+
         while True:
             try:
-                emoji = random.choice(EMOJIS)
+                emoji = emoji_list[emoji_index]
+                emoji_index = (emoji_index + 1) % len(emoji_list)
+
                 await chat.set_title(f"{emoji} {base}")
                 await asyncio.sleep(0.5)  # ⚡ FAST
+
             except RetryAfter as e:
-                # Telegram rate limit → wait then continue
                 await asyncio.sleep(e.retry_after + 1)
+
+            except BadRequest as e:
+                # Same title / minor Telegram issue → skip & continue
+                await asyncio.sleep(0.3)
+                continue
+
             except asyncio.CancelledError:
                 break
-            except Exception:
-                await asyncio.sleep(3)
 
+            except Exception:
+                # koi bhi unexpected error aaye → loop zinda
+                await asyncio.sleep(2)
+                continue
+
+    # purana task ho to cancel
     if chat.id in gcnc_tasks:
         gcnc_tasks[chat.id].cancel()
 
     gcnc_tasks[chat.id] = context.application.create_task(loop())
-    await update.message.reply_text("✅ GCNC started (FAST + UNLIMITED)")
+    await update.message.reply_text("✅ GCNC started (HARD UNLIMITED + FAST)")
 
 async def stopgcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not is_owner(update.effective_user.id):
@@ -106,10 +125,11 @@ async def stopgcnc(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if task:
         task.cancel()
-        await update.message.reply_text("🛑 GCNC stopped")
+        await update.message.reply_text("🛑 GCNC stopped successfully")
     else:
         await update.message.reply_text("No GCNC running.")
 
+# -------- WELCOME --------
 async def welcome(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type not in ["group", "supergroup"]:
         return
